@@ -89,6 +89,14 @@ def main():
     df_bases, df_plantoes = carregar_dados()
     if df_bases is None: return
 
+    # --- Inicialização do Session State (MEMÓRIA) ---
+    if 'resultados' not in st.session_state:
+        st.session_state['resultados'] = None
+    if 'usuario_buscado' not in st.session_state:
+        st.session_state['usuario_buscado'] = ""
+    if 'oficio_buscado' not in st.session_state:
+        st.session_state['oficio_buscado'] = ""
+
     # --- Entradas do Usuário ---
     col1, col2 = st.columns(2)
 
@@ -101,7 +109,7 @@ def main():
             ("Medicina", "Enfermagem", "Extra")
         )
 
-    # Botão para processar
+    # --- Botão de Buscar (Processa e Salva na Memória) ---
     if st.button("Buscar Plantões"):
         if not usuario_d:
             st.warning("Por favor, digite o seu código (Ex: D1).")
@@ -109,11 +117,10 @@ def main():
 
         oficio_tabela = oficio_input
         locais_possiveis = ['HUSE', 'SIQUEIRA', 'UNIT', 'TELECARDIOLOGIA']
+        
+        temp_resultados = []
 
-        # Lista para armazenar os resultados antes de exibir
-        resultados_encontrados = []
-
-        # --- Lógica de Busca ---
+        # Lógica de Busca
         for index, row in df_plantoes.iterrows():
             linha_base = df_bases.iloc[index]
             local_atual = "NÃO ALOCADO"
@@ -151,20 +158,29 @@ def main():
                     }
                     horario_texto = horarios.get(tipo_plantao, tipo_plantao)
                     
-                    # Salva no dicionário (Certifique-se de copiar estas linhas finais corretamente)
-                    resultados_encontrados.append({
+                    temp_resultados.append({
                         "data_formatada": data_formatada,
                         "dia_nome": nome_dia_completo,
                         "local": local_atual,
                         "horario_texto": horario_texto
                     })
-
-        # --- Exibição dos Resultados ---
         
-        if resultados_encontrados:
-            st.success(f"Foram encontrados {len(resultados_encontrados)} plantões para **{usuario_d}**.")
+        # SALVA TUDO NA MEMÓRIA DO STREAMLIT
+        st.session_state['resultados'] = temp_resultados
+        st.session_state['usuario_buscado'] = usuario_d
+        st.session_state['oficio_buscado'] = oficio_tabela
+
+    # --- Exibição (Lê da Memória) ---
+    # Essa parte roda mesmo que a página recarregue ao digitar o nome
+    if st.session_state['resultados'] is not None:
+        resultados = st.session_state['resultados']
+        usuario_atual = st.session_state['usuario_buscado']
+        oficio_atual = st.session_state['oficio_buscado']
+
+        if resultados:
+            st.success(f"Foram encontrados {len(resultados)} plantões para **{usuario_atual}**.")
             
-            # --- Área de Download do PDF (Acima da Lista) ---
+            # --- Área de Download do PDF ---
             with st.container():
                 st.markdown("### 📄 Baixar Relatório em PDF")
                 col_pdf_1, col_pdf_2 = st.columns([2, 1])
@@ -173,14 +189,14 @@ def main():
                     nome_completo = st.text_input("Digite seu Nome Completo para o PDF:", placeholder="Ex: Fulano da Silva")
                 
                 with col_pdf_2:
-                    st.write("") # Espaçamento vertical
+                    st.write("") 
                     st.write("") 
                     if nome_completo:
-                        pdf_buffer = gerar_pdf_plantoes(nome_completo, usuario_d, oficio_tabela, resultados_encontrados)
+                        pdf_buffer = gerar_pdf_plantoes(nome_completo, usuario_atual, oficio_atual, resultados)
                         st.download_button(
                             label="📥 Baixar PDF",
                             data=pdf_buffer,
-                            file_name=f"escala_{usuario_d}_{nome_completo.split()[0]}.pdf",
+                            file_name=f"escala_{usuario_atual}_{nome_completo.split()[0]}.pdf",
                             mime="application/pdf"
                         )
                     else:
@@ -189,8 +205,7 @@ def main():
             st.markdown("---")
             st.subheader("Visualização Rápida:")
 
-            # Exibe os cards visuais
-            for item in resultados_encontrados:
+            for item in resultados:
                 st.success(f"📅 **{item['data_formatada']} ({item['dia_nome']})** - **{item['local']}**\n\n⏰ {item['horario_texto']}")
         
         else:
