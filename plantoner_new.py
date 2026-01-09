@@ -80,6 +80,56 @@ def gerar_pdf_plantoes(nome_completo, codigo_usuario, oficio_usuario, lista_plan
     buffer.seek(0)
     return buffer
 
+def realizar_busca(df_bases, df_plantoes, usuario_d, oficio_tabela):
+    """Função auxiliar para processar a busca e retornar a lista."""
+    locais_possiveis = ['HUSE', 'SIQUEIRA', 'UNIT', 'TELECARDIOLOGIA']
+    temp_resultados = []
+
+    for index, row in df_plantoes.iterrows():
+        linha_base = df_bases.iloc[index]
+        local_atual = "NÃO ALOCADO"
+
+        for local in locais_possiveis:
+            if local in df_bases.columns and linha_base[local] == oficio_tabela:
+                local_atual = local
+                break
+
+        if local_atual == "NÃO ALOCADO":
+            continue
+
+        colunas_dias = [col for col in df_plantoes.columns if
+                        'PADRÃO' in col or 'NOTURNO' in col or 'DIURNO' in col]
+
+        for col_dia in colunas_dias:
+            if row[col_dia] == usuario_d:
+                partes = col_dia.replace(')', '').split(' (')
+                dia_semana_abrev = partes[0]
+                tipo_plantao = partes[1]
+
+                data = obter_data_plantao(index, dia_semana_abrev)
+                data_formatada = data.strftime("%d/%m")
+
+                nomes_dias = {
+                    'Seg': 'Segunda', 'Ter': 'Terça', 'Qua': 'Quarta',
+                    'Qui': 'Quinta', 'Sex': 'Sexta', 'Sáb': 'Sábado', 'Dom': 'Domingo'
+                }
+                nome_dia_completo = nomes_dias.get(dia_semana_abrev, dia_semana_abrev)
+
+                horarios = {
+                    'PADRÃO': '19:00 até 00:00',
+                    'NOTURNO': '19:00 até 07:00',
+                    'DIURNO': '07:00 até 19:00'
+                }
+                horario_texto = horarios.get(tipo_plantao, tipo_plantao)
+                
+                temp_resultados.append({
+                    "data_formatada": data_formatada,
+                    "dia_nome": nome_dia_completo,
+                    "local": local_atual,
+                    "horario_texto": horario_texto
+                })
+    return temp_resultados
+
 # --- Interface Visual do Streamlit ---
 def main():
     st.title("🚑 Consulta de Escala de Plantões")
@@ -92,10 +142,8 @@ def main():
     # --- Inicialização do Session State (MEMÓRIA) ---
     if 'resultados' not in st.session_state:
         st.session_state['resultados'] = None
-    if 'usuario_buscado' not in st.session_state:
-        st.session_state['usuario_buscado'] = ""
-    if 'oficio_buscado' not in st.session_state:
-        st.session_state['oficio_buscado'] = ""
+    if 'modo_exibicao' not in st.session_state:
+        st.session_state['modo_exibicao'] = None  # pode ser 'visual' ou 'pdf'
 
     # --- Entradas do Usuário ---
     col1, col2 = st.columns(2)
@@ -109,107 +157,75 @@ def main():
             ("Medicina", "Enfermagem", "Extra")
         )
 
-    # --- Botão de Buscar (Processa e Salva na Memória) ---
-    if st.button("Buscar Plantões"):
+    # --- Botões de Ação (Lado a Lado) ---
+    col_btn1, col_btn2 = st.columns(2)
+    
+    botao_buscar = col_btn1.button("🔎 Buscar Plantões", use_container_width=True)
+    botao_pdf = col_btn2.button("📄 Baixar Plantões em PDF", use_container_width=True)
+
+    # --- Lógica dos Botões ---
+    # Se clicar em Buscar: Faz a busca e define modo 'visual'
+    if botao_buscar:
         if not usuario_d:
             st.warning("Por favor, digite o seu código (Ex: D1).")
-            return
+        else:
+            resultados = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
+            st.session_state['resultados'] = resultados
+            st.session_state['usuario_buscado'] = usuario_d
+            st.session_state['oficio_buscado'] = oficio_input
+            st.session_state['modo_exibicao'] = 'visual' # Define o modo
 
-        oficio_tabela = oficio_input
-        locais_possiveis = ['HUSE', 'SIQUEIRA', 'UNIT', 'TELECARDIOLOGIA']
-        
-        temp_resultados = []
+    # Se clicar em PDF: Faz a busca (para garantir dados atualizados) e define modo 'pdf'
+    if botao_pdf:
+        if not usuario_d:
+            st.warning("Por favor, digite o seu código (Ex: D1).")
+        else:
+            resultados = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
+            st.session_state['resultados'] = resultados
+            st.session_state['usuario_buscado'] = usuario_d
+            st.session_state['oficio_buscado'] = oficio_input
+            st.session_state['modo_exibicao'] = 'pdf' # Define o modo
 
-        # Lógica de Busca
-        for index, row in df_plantoes.iterrows():
-            linha_base = df_bases.iloc[index]
-            local_atual = "NÃO ALOCADO"
-
-            for local in locais_possiveis:
-                if local in df_bases.columns and linha_base[local] == oficio_tabela:
-                    local_atual = local
-                    break
-
-            if local_atual == "NÃO ALOCADO":
-                continue
-
-            colunas_dias = [col for col in df_plantoes.columns if
-                            'PADRÃO' in col or 'NOTURNO' in col or 'DIURNO' in col]
-
-            for col_dia in colunas_dias:
-                if row[col_dia] == usuario_d:
-                    partes = col_dia.replace(')', '').split(' (')
-                    dia_semana_abrev = partes[0]
-                    tipo_plantao = partes[1]
-
-                    data = obter_data_plantao(index, dia_semana_abrev)
-                    data_formatada = data.strftime("%d/%m")
-
-                    nomes_dias = {
-                        'Seg': 'Segunda', 'Ter': 'Terça', 'Qua': 'Quarta',
-                        'Qui': 'Quinta', 'Sex': 'Sexta', 'Sáb': 'Sábado', 'Dom': 'Domingo'
-                    }
-                    nome_dia_completo = nomes_dias.get(dia_semana_abrev, dia_semana_abrev)
-
-                    horarios = {
-                        'PADRÃO': '19:00 até 00:00',
-                        'NOTURNO': '19:00 até 07:00',
-                        'DIURNO': '07:00 até 19:00'
-                    }
-                    horario_texto = horarios.get(tipo_plantao, tipo_plantao)
-                    
-                    temp_resultados.append({
-                        "data_formatada": data_formatada,
-                        "dia_nome": nome_dia_completo,
-                        "local": local_atual,
-                        "horario_texto": horario_texto
-                    })
-        
-        # SALVA TUDO NA MEMÓRIA DO STREAMLIT
-        st.session_state['resultados'] = temp_resultados
-        st.session_state['usuario_buscado'] = usuario_d
-        st.session_state['oficio_buscado'] = oficio_tabela
-
-    # --- Exibição (Lê da Memória) ---
-    # Essa parte roda mesmo que a página recarregue ao digitar o nome
-    if st.session_state['resultados'] is not None:
+    # --- Exibição Baseada no Modo ---
+    if st.session_state['resultados'] is not None and st.session_state['resultados']:
         resultados = st.session_state['resultados']
         usuario_atual = st.session_state['usuario_buscado']
         oficio_atual = st.session_state['oficio_buscado']
+        modo = st.session_state['modo_exibicao']
 
-        if resultados:
-            st.success(f"Foram encontrados {len(resultados)} plantões para **{usuario_atual}**.")
-            
-            # --- Área de Download do PDF ---
-            with st.container():
-                st.markdown("### 📄 Baixar plantões em PDF")
-                col_pdf_1, col_pdf_2 = st.columns([2, 1])
-                
-                with col_pdf_1:
-                    nome_completo = st.text_input("Digite seu nome para o PDF:", placeholder="Ex: Maria da Silva")
-                
-                with col_pdf_2:
-                    st.write("") 
-                    st.write("") 
-                    if nome_completo:
-                        pdf_buffer = gerar_pdf_plantoes(nome_completo, usuario_atual, oficio_atual, resultados)
-                        st.download_button(
-                            label="📥 Baixar PDF",
-                            data=pdf_buffer,
-                            file_name=f"escala_{usuario_atual}_{nome_completo.split()[0]}.pdf",
-                            mime="application/pdf"
-                        )
-                    else:
-                        st.info("Digite o nome antes do download.")
-            
-            st.markdown("---")
-            st.subheader("Visualização Rápida:")
-
-            for item in resultados:
-                st.success(f"📅 **{item['data_formatada']} ({item['dia_nome']})** - **{item['local']}**\n\n⏰ {item['horario_texto']}")
+        st.markdown("---")
         
-        else:
-            st.info("Nenhum plantão encontrado para os dados informados.")
+        # MODO PDF: Mostra o formulário de download e depois a lista
+        if modo == 'pdf':
+            st.info("Preencha seu nome abaixo para gerar o arquivo.")
+            col_pdf_1, col_pdf_2 = st.columns([2, 1])
+            
+            with col_pdf_1:
+                nome_completo = st.text_input("Nome Completo:", placeholder="Ex: Maria da Silva")
+            
+            with col_pdf_2:
+                st.write("") 
+                st.write("") 
+                if nome_completo:
+                    pdf_buffer = gerar_pdf_plantoes(nome_completo, usuario_atual, oficio_atual, resultados)
+                    st.download_button(
+                        label="📥 Download Agora",
+                        data=pdf_buffer,
+                        file_name=f"escala_{usuario_atual}_{nome_completo.split()[0]}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        type="primary"
+                    )
+
+        # MODO VISUAL: Mostra título de "Visualização Rápida" 
+        # (No modo PDF também mostramos a lista abaixo, conforme pedido)
+        st.subheader(f"Plantões de {usuario_atual} ({oficio_atual})")
+
+        for item in resultados:
+            st.success(f"📅 **{item['data_formatada']} ({item['dia_nome']})** - **{item['local']}**\n\n⏰ {item['horario_texto']}")
+
+    elif st.session_state['resultados'] is not None and not st.session_state['resultados']:
+        st.info("Nenhum plantão encontrado para os dados informados.")
 
 if __name__ == "__main__":
     main()
