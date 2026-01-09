@@ -95,19 +95,18 @@ def main():
                     }
                     nome_dia_completo = nomes_dias.get(dia_semana_abrev, dia_semana_abrev)
 
-                    # --- Lógica de Horários Modificada ---
+                    # --- Lógica de Horários ---
                     horarios = {
                         'PADRÃO': '19:00 até 00:00',
                         'NOTURNO': '19:00 até 07:00',
                         'DIURNO': '07:00 até 19:00'
                     }
-                    # Pega o horário correspondente ou mantém o nome original se não encontrar
                     horario_texto = horarios.get(tipo_plantao, tipo_plantao)
 
-                    # Exibe o resultado formatado com quebra de linha
-                    st.success(f"""
-                    📅 **{data_formatada} ({nome_dia_completo})** - **{local_atual}** ⏰ {horario_texto}
-                    """)
+                    # --- Exibição com Quebra de Linha ---
+                    # O \n\n garante que o Streamlit entenda que é para pular a linha visualmente
+                    st.success(f"📅 **{data_formatada} ({nome_dia_completo})** - **{local_atual}**\n\n⏰ {horario_texto}")
+                    
                     encontrou_algo = True
 
         if not encontrou_algo:
