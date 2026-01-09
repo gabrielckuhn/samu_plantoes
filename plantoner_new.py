@@ -186,7 +186,7 @@ def main():
                 col_pdf_1, col_pdf_2 = st.columns([2, 1])
                 
                 with col_pdf_1:
-                    nome_completo = st.text_input("Digite seu Nome Completo para o PDF:", placeholder="Ex: Fulano da Silva")
+                    nome_completo = st.text_input("Digite seu nome para o PDF:", placeholder="Ex: Maria da Silva")
                 
                 with col_pdf_2:
                     st.write("") 
@@ -200,7 +200,7 @@ def main():
                             mime="application/pdf"
                         )
                     else:
-                        st.info("Digite seu nome para liberar o download.")
+                        st.info("Digite o nome antes do download.")
             
             st.markdown("---")
             st.subheader("Visualização Rápida:")
