@@ -182,7 +182,7 @@ def main():
             
             # --- Área de Download do PDF ---
             with st.container():
-                st.markdown("### 📄 Baixar Relatório em PDF")
+                st.markdown("### 📄 Baixar plantões em PDF")
                 col_pdf_1, col_pdf_2 = st.columns([2, 1])
                 
                 with col_pdf_1:
