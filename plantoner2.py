@@ -39,7 +39,7 @@ def main():
     df_bases, df_plantoes = carregar_dados()
     if df_bases is None: return
 
-    # --- Entradas do Usuário (Widgets em vez de input) ---
+    # --- Entradas do Usuário ---
     col1, col2 = st.columns(2)
 
     with col1:
@@ -57,8 +57,6 @@ def main():
             st.warning("Por favor, digite o seu código (Ex: D1).")
             return
 
-        # Mapeamento interno (Selectbox já retorna o nome certo, mas garantindo compatibilidade)
-        # O selectbox já retorna 'Medicina', 'Enfermagem' etc, então simplifica a lógica
         oficio_tabela = oficio_input
         locais_possiveis = ['HUSE', 'SIQUEIRA', 'UNIT', 'TELECARDIOLOGIA']
 
@@ -97,8 +95,19 @@ def main():
                     }
                     nome_dia_completo = nomes_dias.get(dia_semana_abrev, dia_semana_abrev)
 
-                    # Exibe o resultado na tela bonito
-                    st.success(f"📅 **{data_formatada}** - {nome_dia_completo} - {tipo_plantao} - **{local_atual}**")
+                    # --- Lógica de Horários Modificada ---
+                    horarios = {
+                        'PADRÃO': '19:00 até 00:00',
+                        'NOTURNO': '19:00 até 07:00',
+                        'DIURNO': '07:00 até 19:00'
+                    }
+                    # Pega o horário correspondente ou mantém o nome original se não encontrar
+                    horario_texto = horarios.get(tipo_plantao, tipo_plantao)
+
+                    # Exibe o resultado formatado com quebra de linha
+                    st.success(f"""
+                    📅 **{data_formatada} ({nome_dia_completo})** - **{local_atual}** ⏰ {horario_texto}
+                    """)
                     encontrou_algo = True
 
         if not encontrou_algo:
