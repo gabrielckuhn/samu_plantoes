@@ -113,7 +113,7 @@ def main():
         # Lista para armazenar os resultados antes de exibir
         resultados_encontrados = []
 
-        # --- Lógica de Busca (Armazena em lista em vez de imprimir direto) ---
+        # --- Lógica de Busca ---
         for index, row in df_plantoes.iterrows():
             linha_base = df_bases.iloc[index]
             local_atual = "NÃO ALOCADO"
@@ -151,7 +151,50 @@ def main():
                     }
                     horario_texto = horarios.get(tipo_plantao, tipo_plantao)
                     
-                    # Salva no dicionário
+                    # Salva no dicionário (Certifique-se de copiar estas linhas finais corretamente)
                     resultados_encontrados.append({
                         "data_formatada": data_formatada,
                         "dia_nome": nome_dia_completo,
+                        "local": local_atual,
+                        "horario_texto": horario_texto
+                    })
+
+        # --- Exibição dos Resultados ---
+        
+        if resultados_encontrados:
+            st.success(f"Foram encontrados {len(resultados_encontrados)} plantões para **{usuario_d}**.")
+            
+            # --- Área de Download do PDF (Acima da Lista) ---
+            with st.container():
+                st.markdown("### 📄 Baixar Relatório em PDF")
+                col_pdf_1, col_pdf_2 = st.columns([2, 1])
+                
+                with col_pdf_1:
+                    nome_completo = st.text_input("Digite seu Nome Completo para o PDF:", placeholder="Ex: Fulano da Silva")
+                
+                with col_pdf_2:
+                    st.write("") # Espaçamento vertical
+                    st.write("") 
+                    if nome_completo:
+                        pdf_buffer = gerar_pdf_plantoes(nome_completo, usuario_d, oficio_tabela, resultados_encontrados)
+                        st.download_button(
+                            label="📥 Baixar PDF",
+                            data=pdf_buffer,
+                            file_name=f"escala_{usuario_d}_{nome_completo.split()[0]}.pdf",
+                            mime="application/pdf"
+                        )
+                    else:
+                        st.info("Digite seu nome para liberar o download.")
+            
+            st.markdown("---")
+            st.subheader("Visualização Rápida:")
+
+            # Exibe os cards visuais
+            for item in resultados_encontrados:
+                st.success(f"📅 **{item['data_formatada']} ({item['dia_nome']})** - **{item['local']}**\n\n⏰ {item['horario_texto']}")
+        
+        else:
+            st.info("Nenhum plantão encontrado para os dados informados.")
+
+if __name__ == "__main__":
+    main()
