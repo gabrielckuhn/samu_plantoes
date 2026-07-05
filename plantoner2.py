@@ -20,7 +20,9 @@ def carregar_dados():
         return None, None
 
 def obter_data_plantao(semana_index, dia_str):
-    data_base = datetime(2026, 1, 5)
+    # A primeira linha do PLANTOES.csv corresponde à semana "06 jul - 12 jul" de 2026,
+    # e 06/07/2026 é uma segunda-feira — por isso a data-base é essa, e não outra.
+    data_base = datetime(2026, 7, 6)
     offset_dias = {'Seg': 0, 'Ter': 1, 'Qua': 2, 'Qui': 3, 'Sex': 4, 'Sáb': 5, 'Dom': 6}
     dia_chave = dia_str[:3]
 
