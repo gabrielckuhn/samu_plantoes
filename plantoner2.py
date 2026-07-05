@@ -169,9 +169,22 @@ def aplicar_estilo(tema: str):
             background: transparent;
         }}
 
-        .bloco-central {{
-            max-width: 900px;
+        div.block-container,
+        [data-testid="stAppViewBlockContainer"] {{
+            max-width: 1000px;
             margin: 0 auto;
+            padding-top: 2.2rem;
+            padding-bottom: 3rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }}
+
+        @media (max-width: 640px) {{
+            div.block-container,
+            [data-testid="stAppViewBlockContainer"] {{
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }}
         }}
 
         .topo-flex {{
@@ -291,17 +304,22 @@ def aplicar_estilo(tema: str):
 
 
 def renderizar_cartoes(resultados):
-    html = ['<div class="grade-plantoes">']
+    # Importante: cada cartão precisa ficar em UMA única linha, sem indentação,
+    # senão o parser de Markdown do Streamlit interpreta o HTML indentado como
+    # bloco de código e exibe as tags cruas em vez de renderizar (bug visto após
+    # o 1º cartão).
+    cartoes = []
     for idx, item in enumerate(resultados, start=1):
-        html.append(f"""
-        <div class="cartao-plantao">
-            <span class="rotulo-plantao">Plantão {idx}</span>
-            <div class="linha-data">📅 {item['data_formatada']} ({item['dia_nome']}) - {item['local']}</div>
-            <div class="linha-horario">⏰ {item['horario_texto']}</div>
-        </div>
-        """)
-    html.append('</div>')
-    st.markdown("".join(html), unsafe_allow_html=True)
+        cartao = (
+            f'<div class="cartao-plantao">'
+            f'<span class="rotulo-plantao">Plantão {idx}</span>'
+            f'<div class="linha-data">📅 {item["data_formatada"]} ({item["dia_nome"]}) - {item["local"]}</div>'
+            f'<div class="linha-horario">⏰ {item["horario_texto"]}</div>'
+            f'</div>'
+        )
+        cartoes.append(cartao)
+    html = '<div class="grade-plantoes">' + "".join(cartoes) + '</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # --- Interface Visual do Streamlit ---
@@ -314,8 +332,6 @@ def main():
         st.session_state['modo_exibicao'] = None
 
     aplicar_estilo(st.session_state['tema'])
-
-    st.markdown('<div class="bloco-central">', unsafe_allow_html=True)
 
     col_titulo, col_switch = st.columns([4, 1])
     with col_titulo:
@@ -330,7 +346,6 @@ def main():
 
     df_bases, df_plantoes = carregar_dados()
     if df_bases is None:
-        st.markdown('</div>', unsafe_allow_html=True)
         return
 
     # --- Entradas do Usuário ---
@@ -407,8 +422,6 @@ def main():
 
     elif st.session_state['resultados'] is not None and not st.session_state['resultados']:
         st.info("Nenhum plantão encontrado para os dados informados.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
