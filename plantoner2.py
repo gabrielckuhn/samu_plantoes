@@ -384,8 +384,6 @@ def renderizar_cartoes(resultados):
 def main():
     if 'resultados' not in st.session_state:
         st.session_state['resultados'] = None
-    if 'modo_exibicao' not in st.session_state:
-        st.session_state['modo_exibicao'] = None
 
     aplicar_estilo()
 
@@ -415,66 +413,36 @@ def main():
             ("Medicina", "Enfermagem", "Extra")
         )
 
-    # --- Botões de Ação (Lado a Lado) ---
-    col_btn1, col_btn2 = st.columns(2)
+    # --- Botão de Ação (único) ---
+    botao_buscar = st.button("🔎 Buscar Plantões", use_container_width=True, type="primary")
 
-    botao_buscar = col_btn1.button("🔎 Buscar Plantões", use_container_width=True)
-    botao_pdf = col_btn2.button("📄 Baixar Plantões em PDF", use_container_width=True)
-
-    # --- Lógica dos Botões ---
     if botao_buscar:
-        if not usuario_d:
-            st.warning("Por favor, digite o seu código (Ex: D1).")
-        else:
-            resultados = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
-            st.session_state['resultados'] = resultados
-            st.session_state['usuario_buscado'] = usuario_d
-            st.session_state['oficio_buscado'] = oficio_input
-            st.session_state['modo_exibicao'] = 'visual'
+        resultados = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
+        st.session_state['resultados'] = resultados
+        st.session_state['usuario_buscado'] = usuario_d
+        st.session_state['oficio_buscado'] = oficio_input
 
-    if botao_pdf:
-        if not usuario_d:
-            st.warning("Por favor, digite o seu código (Ex: D1).")
-        else:
-            resultados = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
-            st.session_state['resultados'] = resultados
-            st.session_state['usuario_buscado'] = usuario_d
-            st.session_state['oficio_buscado'] = oficio_input
-            st.session_state['modo_exibicao'] = 'pdf'
-
-    # --- Exibição Baseada no Modo ---
+    # --- Exibição dos Resultados ---
     if st.session_state['resultados'] is not None and st.session_state['resultados']:
         resultados = st.session_state['resultados']
         usuario_atual = st.session_state['usuario_buscado']
         oficio_atual = st.session_state['oficio_buscado']
-        modo = st.session_state['modo_exibicao']
+        nome_pessoa = obter_nome_pessoa(usuario_atual, oficio_atual)
 
         st.markdown("---")
-
-        if modo == 'pdf':
-            st.info("Preencha seu nome abaixo para gerar o arquivo.")
-            col_pdf_1, col_pdf_2 = st.columns([2, 1])
-            nome_sugerido = obter_nome_pessoa(usuario_atual, oficio_atual)
-
-            with col_pdf_1:
-                nome_completo = st.text_input("Nome Completo:", value=nome_sugerido, placeholder="Ex: Maria da Silva")
-
-            with col_pdf_2:
-                st.write("")
-                st.write("")
-                if nome_completo:
-                    pdf_buffer = gerar_pdf_plantoes(nome_completo, usuario_atual, oficio_atual, resultados)
-                    st.download_button(
-                        label="📥 Download Agora",
-                        data=pdf_buffer,
-                        file_name=f"escala_{usuario_atual}_{nome_completo.split()[0]}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                        type="primary"
-                    )
-
-        st.subheader(f"Plantões de {obter_nome_pessoa(usuario_atual, oficio_atual)}")
+        st.subheader(f"Plantões de {nome_pessoa}")
         renderizar_cartoes(resultados)
+
+        # PDF já vem pronto junto com a busca — só falta o clique de download
+        pdf_buffer = gerar_pdf_plantoes(nome_pessoa, usuario_atual, oficio_atual, resultados)
+        st.download_button(
+            label=f"📥 Baixar PDF de {nome_pessoa}",
+            data=pdf_buffer,
+            file_name=f"escala_{usuario_atual}_{nome_pessoa.split()[0]}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            type="secondary"
+        )
 
     elif st.session_state['resultados'] is not None and not st.session_state['resultados']:
         st.info("Nenhum plantão encontrado para os dados informados.")
