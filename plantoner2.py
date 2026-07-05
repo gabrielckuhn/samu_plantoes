@@ -85,6 +85,21 @@ def gerar_pdf_plantoes(nome_completo, codigo_usuario, oficio_usuario, lista_plan
     buffer.seek(0)
     return buffer
 
+# --- Tabela de nomes da equipe (código + ofício -> nome da pessoa) ---
+NOMES_EQUIPE = {
+    "D1": {"Medicina": "Clarissa Avancini", "Enfermagem": "Kamila Campos", "Extra": "Dieneifer Almeida"},
+    "D2": {"Medicina": "Caio Siqueira", "Enfermagem": "Paloma Santos", "Extra": "Clayton de Jesus"},
+    "D3": {"Medicina": "Lara Vieira", "Enfermagem": "Luana Sampaio", "Extra": "Felipe Oliveira"},
+    "D4": {"Medicina": "Edvaldo Menezes", "Enfermagem": "Maria Eduarda", "Extra": "Thainá Nissink"},
+    "D5": {"Medicina": "Luana Santos", "Enfermagem": "Raísa de Oliveira", "Extra": "Camilly dos Santos"},
+    "D6": {"Medicina": "Jeniffer de Souza", "Enfermagem": "Joiamar Lima", "Extra": "Natália Rocha"},
+    "D7": {"Medicina": "Júlia Maria", "Enfermagem": "Álex Luiz", "Extra": "Vitória Souza"},
+}
+
+def obter_nome_pessoa(codigo, oficio):
+    """Retorna o nome da pessoa a partir do código (D1-D7) e ofício; se não achar, usa 'código (ofício)'."""
+    return NOMES_EQUIPE.get(codigo, {}).get(oficio, f"{codigo} ({oficio})")
+
 def realizar_busca(df_bases, df_plantoes, usuario_d, oficio_tabela):
     """Função auxiliar para processar a busca e retornar a lista."""
     locais_possiveis = ['HUSE', 'SIQUEIRA', 'UNIT', 'TELECARDIOLOGIA']
@@ -219,22 +234,24 @@ def aplicar_estilo():
         }}
 
         .titulo-principal {{
-            font-size: 3.9rem;
-            font-weight: 800;
-            margin: 0;
-            line-height: 1.15;
+            font-size: 3.9rem !important;
+            font-weight: 800 !important;
+            margin: 0 !important;
+            line-height: 1.15 !important;
         }}
 
         .titulo-emoji {{
             /* Emoji fica fora do gradiente para não perder as cores originais */
             -webkit-text-fill-color: initial;
             color: initial;
+            font-size: inherit !important;
         }}
 
         .titulo-texto {{
             background: linear-gradient(90deg, {accent}, {accent2});
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            font-size: inherit !important;
         }}
 
         .subtitulo-boas-vindas {{
@@ -438,9 +455,10 @@ def main():
         if modo == 'pdf':
             st.info("Preencha seu nome abaixo para gerar o arquivo.")
             col_pdf_1, col_pdf_2 = st.columns([2, 1])
+            nome_sugerido = obter_nome_pessoa(usuario_atual, oficio_atual)
 
             with col_pdf_1:
-                nome_completo = st.text_input("Nome Completo:", placeholder="Ex: Maria da Silva")
+                nome_completo = st.text_input("Nome Completo:", value=nome_sugerido, placeholder="Ex: Maria da Silva")
 
             with col_pdf_2:
                 st.write("")
@@ -456,7 +474,7 @@ def main():
                         type="primary"
                     )
 
-        st.subheader(f"Plantões de {usuario_atual} ({oficio_atual})")
+        st.subheader(f"Plantões de {obter_nome_pessoa(usuario_atual, oficio_atual)}")
         renderizar_cartoes(resultados)
 
     elif st.session_state['resultados'] is not None and not st.session_state['resultados']:
