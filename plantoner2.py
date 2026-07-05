@@ -219,10 +219,19 @@ def aplicar_estilo():
         }}
 
         .titulo-principal {{
-            font-size: 3.1rem;
+            font-size: 3.9rem;
             font-weight: 800;
             margin: 0;
             line-height: 1.15;
+        }}
+
+        .titulo-emoji {{
+            /* Emoji fica fora do gradiente para não perder as cores originais */
+            -webkit-text-fill-color: initial;
+            color: initial;
+        }}
+
+        .titulo-texto {{
             background: linear-gradient(90deg, {accent}, {accent2});
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -321,7 +330,7 @@ def aplicar_estilo():
         }}
 
         @media (max-width: 640px) {{
-            .titulo-principal {{ font-size: 2rem; }}
+            .titulo-principal {{ font-size: 2.4rem; }}
             .grade-plantoes {{ grid-template-columns: 1fr; }}
         }}
     </style>
@@ -364,7 +373,11 @@ def main():
 
     aplicar_estilo()
 
-    st.markdown('<p class="titulo-principal">🚑 Plantões da 40ª Geração</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="titulo-principal"><span class="titulo-emoji">🚑</span> '
+        '<span class="titulo-texto">Escala dos bananinhas</span></p>',
+        unsafe_allow_html=True
+    )
     st.markdown('<p class="subtitulo-boas-vindas">Bem-vindos bananinhas da 40!</p>', unsafe_allow_html=True)
 
     df_bases, df_plantoes = carregar_dados()
@@ -375,7 +388,10 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
-        usuario_d = st.text_input("Digite o seu código (Ex: D1, D7):").upper().strip()
+        usuario_d = st.selectbox(
+            "Selecione o seu código:",
+            ("D1", "D2", "D3", "D4", "D5", "D6", "D7")
+        ).upper().strip()
 
     with col2:
         oficio_input = st.selectbox(
