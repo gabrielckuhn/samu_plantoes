@@ -234,10 +234,10 @@ def aplicar_estilo():
         }}
 
         .titulo-principal {{
-            font-size: 3.9rem !important;
+            font-size: clamp(1.7rem, 4.5vw, 2.6rem) !important;
             font-weight: 800 !important;
             margin: 0 !important;
-            line-height: 1.15 !important;
+            line-height: 1.2 !important;
         }}
 
         .titulo-emoji {{
@@ -347,7 +347,6 @@ def aplicar_estilo():
         }}
 
         @media (max-width: 640px) {{
-            .titulo-principal {{ font-size: 2.4rem; }}
             .grade-plantoes {{ grid-template-columns: 1fr; }}
         }}
     </style>
