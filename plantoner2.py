@@ -144,6 +144,7 @@ def realizar_busca(df_bases, df_plantoes, usuario_d, oficio_tabela):
 
                 temp_resultados.append({
                     "data_formatada": data_formatada,
+                    "data_obj": data,
                     "dia_nome": nome_dia_completo,
                     "local": local_atual,
                     "horario_texto": horario_texto,
@@ -320,6 +321,15 @@ def aplicar_estilo():
             box-shadow: 0 10px 22px {sombra};
         }}
 
+        .cartao-passado {{
+            opacity: 0.4;
+            filter: grayscale(35%);
+        }}
+        .cartao-passado:hover {{
+            transform: none;
+            box-shadow: 0 2px 10px {sombra};
+        }}
+
         .rotulo-plantao {{
             display: inline-block;
             font-size: 0.72rem;
@@ -364,12 +374,15 @@ def renderizar_cartoes(resultados):
         'NOTURNO': '🌙'
     }
 
+    hoje = datetime.now().date()
+
     cartoes = []
     for idx, item in enumerate(resultados, start=1):
         emoji = emoji_turno.get(item.get("tipo_plantao", ""), "")
         rotulo_texto = f"Plantão {idx} ·{emoji}" if emoji else f"Plantão {idx}"
+        classe_extra = " cartao-passado" if item["data_obj"].date() < hoje else ""
         cartao = (
-            f'<div class="cartao-plantao">'
+            f'<div class="cartao-plantao{classe_extra}">'
             f'<span class="rotulo-plantao">{rotulo_texto}</span>'
             f'<div class="linha-data">📅 {item["data_formatada"]} ({item["dia_nome"]}) - {item["local"]}</div>'
             f'<div class="linha-horario">⏰ {item["horario_texto"]}</div>'
@@ -413,38 +426,44 @@ def main():
             ("Medicina", "Enfermagem", "Extra")
         )
 
-    # --- Botão de Ação (único) ---
-    botao_buscar = st.button("🔎 Buscar Plantões", use_container_width=True, type="primary")
+    # --- Botões de Ação (lado a lado, PDF sempre pronto pra 1 clique) ---
+    resultados_atuais = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
+    nome_pessoa = obter_nome_pessoa(usuario_d, oficio_input)
 
-    if botao_buscar:
-        resultados = realizar_busca(df_bases, df_plantoes, usuario_d, oficio_input)
-        st.session_state['resultados'] = resultados
-        st.session_state['usuario_buscado'] = usuario_d
-        st.session_state['oficio_buscado'] = oficio_input
+    col_btn1, col_btn2 = st.columns(2)
+
+    with col_btn1:
+        if st.button("🔎 Buscar Plantões", use_container_width=True):
+            st.session_state['mostrar_resultados'] = True
+            st.session_state['resultados'] = resultados_atuais
+            st.session_state['usuario_buscado'] = usuario_d
+            st.session_state['oficio_buscado'] = oficio_input
+
+    with col_btn2:
+        if resultados_atuais:
+            pdf_buffer = gerar_pdf_plantoes(nome_pessoa, usuario_d, oficio_input, resultados_atuais)
+            st.download_button(
+                label=f"📥 Baixar PDF de {nome_pessoa}",
+                data=pdf_buffer,
+                file_name=f"escala_{usuario_d}_{nome_pessoa.split()[0]}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        else:
+            st.button("📥 Baixar PDF", use_container_width=True, disabled=True)
 
     # --- Exibição dos Resultados ---
-    if st.session_state['resultados'] is not None and st.session_state['resultados']:
+    if st.session_state.get('mostrar_resultados') and st.session_state.get('resultados'):
         resultados = st.session_state['resultados']
         usuario_atual = st.session_state['usuario_buscado']
         oficio_atual = st.session_state['oficio_buscado']
-        nome_pessoa = obter_nome_pessoa(usuario_atual, oficio_atual)
+        nome_exibido = obter_nome_pessoa(usuario_atual, oficio_atual)
 
         st.markdown("---")
-        st.subheader(f"Plantões de {nome_pessoa}")
+        st.subheader(f"Plantões de {nome_exibido}")
         renderizar_cartoes(resultados)
 
-        # PDF já vem pronto junto com a busca — só falta o clique de download
-        pdf_buffer = gerar_pdf_plantoes(nome_pessoa, usuario_atual, oficio_atual, resultados)
-        st.download_button(
-            label=f"📥 Baixar PDF de {nome_pessoa}",
-            data=pdf_buffer,
-            file_name=f"escala_{usuario_atual}_{nome_pessoa.split()[0]}.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-            type="secondary"
-        )
-
-    elif st.session_state['resultados'] is not None and not st.session_state['resultados']:
+    elif st.session_state.get('mostrar_resultados') and not st.session_state.get('resultados'):
         st.info("Nenhum plantão encontrado para os dados informados.")
 
 if __name__ == "__main__":
