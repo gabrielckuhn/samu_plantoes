@@ -131,32 +131,23 @@ def realizar_busca(df_bases, df_plantoes, usuario_d, oficio_tabela):
                     "data_formatada": data_formatada,
                     "dia_nome": nome_dia_completo,
                     "local": local_atual,
-                    "horario_texto": horario_texto
+                    "horario_texto": horario_texto,
+                    "tipo_plantao": tipo_plantao
                 })
     return temp_resultados
 
-# --- Tema (claro/escuro) e Estilização ---
-def aplicar_estilo(tema: str):
-    if tema == "dark":
-        bg = "#0f172a"
-        bg_card = "#16213a"
-        bg_input = "#1c2b4a"
-        texto = "#e8edf5"
-        texto_sec = "#93a3bd"
-        borda = "#2b3b58"
-        accent = "#38bdf8"
-        accent2 = "#34d399"
-        sombra = "rgba(0,0,0,0.45)"
-    else:
-        bg = "#f4f7fb"
-        bg_card = "#ffffff"
-        bg_input = "#ffffff"
-        texto = "#0f1b2d"
-        texto_sec = "#5c6b82"
-        borda = "#e3e9f2"
-        accent = "#0ea5e9"
-        accent2 = "#16a34a"
-        sombra = "rgba(15,27,45,0.08)"
+# --- Estilização (tema escuro fixo, com luzes suaves de fundo) ---
+def aplicar_estilo():
+    bg = "#0b1120"
+    bg_card = "#161f36"
+    bg_input = "#1a2540"
+    texto = "#e8edf5"
+    texto_sec = "#93a3bd"
+    borda = "#2b3b58"
+    accent = "#38bdf8"
+    accent2 = "#34d399"
+    accent2_rotulo = "#0f9b6c"
+    sombra = "rgba(0,0,0,0.45)"
 
     st.markdown(f"""
     <style>
@@ -165,8 +156,34 @@ def aplicar_estilo(tema: str):
             color: {texto};
         }}
 
-        [data-testid="stHeader"] {{
-            background: transparent;
+        /* Luzes suaves de fundo, fixas, para tirar o efeito "flat" */
+        .stApp::before {{
+            content: "";
+            position: fixed;
+            top: -12%;
+            left: -10%;
+            width: 55vw;
+            height: 55vw;
+            max-width: 700px;
+            max-height: 700px;
+            background: radial-gradient(circle, rgba(56,189,248,0.22) 0%, rgba(56,189,248,0) 70%);
+            filter: blur(10px);
+            pointer-events: none;
+            z-index: 0;
+        }}
+        .stApp::after {{
+            content: "";
+            position: fixed;
+            bottom: -18%;
+            right: -12%;
+            width: 60vw;
+            height: 60vw;
+            max-width: 780px;
+            max-height: 780px;
+            background: radial-gradient(circle, rgba(52,211,153,0.16) 0%, rgba(52,211,153,0) 70%);
+            filter: blur(10px);
+            pointer-events: none;
+            z-index: 0;
         }}
 
         div.block-container,
@@ -177,6 +194,8 @@ def aplicar_estilo(tema: str):
             padding-bottom: 3rem;
             padding-left: 2rem;
             padding-right: 2rem;
+            position: relative;
+            z-index: 1;
         }}
 
         @media (max-width: 640px) {{
@@ -185,6 +204,10 @@ def aplicar_estilo(tema: str):
                 padding-left: 1rem;
                 padding-right: 1rem;
             }}
+        }}
+
+        [data-testid="stHeader"] {{
+            background: transparent;
         }}
 
         .topo-flex {{
@@ -196,9 +219,10 @@ def aplicar_estilo(tema: str):
         }}
 
         .titulo-principal {{
-            font-size: 2.1rem;
+            font-size: 3.1rem;
             font-weight: 800;
             margin: 0;
+            line-height: 1.15;
             background: linear-gradient(90deg, {accent}, {accent2});
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -207,7 +231,7 @@ def aplicar_estilo(tema: str):
         .subtitulo-boas-vindas {{
             color: {texto_sec};
             font-size: 1.05rem;
-            margin-top: 0.2rem;
+            margin-top: 0.3rem;
             margin-bottom: 1.6rem;
         }}
 
@@ -277,10 +301,11 @@ def aplicar_estilo(tema: str):
             letter-spacing: 0.04em;
             text-transform: uppercase;
             color: white;
-            background: linear-gradient(90deg, {accent}, {accent2});
+            background: linear-gradient(90deg, {accent}, {accent2_rotulo});
             padding: 0.18rem 0.6rem;
             border-radius: 999px;
             margin-bottom: 0.55rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.35);
         }}
 
         .linha-data {{
@@ -296,7 +321,7 @@ def aplicar_estilo(tema: str):
         }}
 
         @media (max-width: 640px) {{
-            .titulo-principal {{ font-size: 1.55rem; }}
+            .titulo-principal {{ font-size: 2rem; }}
             .grade-plantoes {{ grid-template-columns: 1fr; }}
         }}
     </style>
@@ -308,11 +333,19 @@ def renderizar_cartoes(resultados):
     # senão o parser de Markdown do Streamlit interpreta o HTML indentado como
     # bloco de código e exibe as tags cruas em vez de renderizar (bug visto após
     # o 1º cartão).
+    emoji_turno = {
+        'DIURNO': '☀️',
+        'PADRÃO': '🌓',
+        'NOTURNO': '🌙'
+    }
+
     cartoes = []
     for idx, item in enumerate(resultados, start=1):
+        emoji = emoji_turno.get(item.get("tipo_plantao", ""), "")
+        rotulo_texto = f"Plantão {idx} ·{emoji}" if emoji else f"Plantão {idx}"
         cartao = (
             f'<div class="cartao-plantao">'
-            f'<span class="rotulo-plantao">Plantão {idx}</span>'
+            f'<span class="rotulo-plantao">{rotulo_texto}</span>'
             f'<div class="linha-data">📅 {item["data_formatada"]} ({item["dia_nome"]}) - {item["local"]}</div>'
             f'<div class="linha-horario">⏰ {item["horario_texto"]}</div>'
             f'</div>'
@@ -324,25 +357,15 @@ def renderizar_cartoes(resultados):
 
 # --- Interface Visual do Streamlit ---
 def main():
-    if 'tema' not in st.session_state:
-        st.session_state['tema'] = 'light'
     if 'resultados' not in st.session_state:
         st.session_state['resultados'] = None
     if 'modo_exibicao' not in st.session_state:
         st.session_state['modo_exibicao'] = None
 
-    aplicar_estilo(st.session_state['tema'])
+    aplicar_estilo()
 
-    col_titulo, col_switch = st.columns([4, 1])
-    with col_titulo:
-        st.markdown('<p class="titulo-principal">🚑 Plantões da 40ª Geração</p>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitulo-boas-vindas">Bem-vindos bananinhas da 40!</p>', unsafe_allow_html=True)
-    with col_switch:
-        modo_escuro = st.toggle("🌙 Escuro", value=(st.session_state['tema'] == 'dark'))
-        novo_tema = 'dark' if modo_escuro else 'light'
-        if novo_tema != st.session_state['tema']:
-            st.session_state['tema'] = novo_tema
-            st.rerun()
+    st.markdown('<p class="titulo-principal">🚑 Plantões da 40ª Geração</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitulo-boas-vindas">Bem-vindos bananinhas da 40!</p>', unsafe_allow_html=True)
 
     df_bases, df_plantoes = carregar_dados()
     if df_bases is None:
