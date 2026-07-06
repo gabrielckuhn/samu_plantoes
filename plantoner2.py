@@ -119,6 +119,15 @@ def realizar_busca(df_bases, df_plantoes, usuario_d, oficio_tabela):
         if local_atual == "NÃO ALOCADO":
             continue
 
+        # Descobre em qual base a PÓS-GRADUAÇÃO está naquela semana (usado no
+        # painel que aparece ao clicar num plantão de Telecardiologia, já que
+        # ela ainda não está disponível).
+        local_pos_graduacao = None
+        for local in locais_possiveis:
+            if local in df_bases.columns and linha_base[local] == 'PÓS-GRADUAÇÃO':
+                local_pos_graduacao = local
+                break
+
         colunas_dias = [col for col in df_plantoes.columns if
                         'PADRÃO' in col or 'NOTURNO' in col or 'DIURNO' in col]
 
@@ -150,7 +159,8 @@ def realizar_busca(df_bases, df_plantoes, usuario_d, oficio_tabela):
                     "dia_nome": nome_dia_completo,
                     "local": local_atual,
                     "horario_texto": horario_texto,
-                    "tipo_plantao": tipo_plantao
+                    "tipo_plantao": tipo_plantao,
+                    "local_pos_graduacao": local_pos_graduacao
                 })
     return temp_resultados
 
@@ -166,6 +176,9 @@ def aplicar_estilo():
     accent2 = "#34d399"
     accent2_rotulo = "#0f9b6c"
     sombra = "rgba(0,0,0,0.45)"
+    vermelho_bolinha = "#ef4444"
+    vermelho_painel = "#3f0f13"
+    borda_vermelha = "#5c1a20"
 
     st.markdown(f"""
     <style>
@@ -332,6 +345,68 @@ def aplicar_estilo():
             box-shadow: 0 2px 10px {sombra};
         }}
 
+        /* Bolinha vermelha ao lado do nome da base, quando for Telecardiologia */
+        .bolinha-indisponivel {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: {vermelho_bolinha};
+            margin-left: 6px;
+            vertical-align: middle;
+        }}
+
+        /* Cartão clicável (Telecardiologia): usa <label> em vez de <div> para
+           poder alternar o painel abaixo só com CSS (checkbox escondido),
+           sem precisar de JavaScript. */
+        .cartao-wrapper {{
+            position: relative;
+        }}
+        .chk-telecardio {{
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }}
+        label.cartao-plantao {{
+            display: block;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+        }}
+
+        .painel-pos-graduacao {{
+            max-height: 0;
+            overflow: hidden;
+            background: {vermelho_painel};
+            border: 1px solid {borda_vermelha};
+            border-top: none;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+            margin-top: -1px;
+            padding: 0 1.1rem;
+            transition: max-height 0.28s ease, padding 0.28s ease;
+        }}
+        .painel-pos-graduacao span {{
+            display: inline-block;
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 0.92rem;
+            opacity: 0;
+            transition: opacity 0.18s ease 0.05s;
+        }}
+
+        .chk-telecardio:checked ~ label.cartao-plantao {{
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }}
+        .chk-telecardio:checked ~ .painel-pos-graduacao {{
+            max-height: 60px;
+            padding: 0.7rem 1.1rem;
+        }}
+        .chk-telecardio:checked ~ .painel-pos-graduacao span {{
+            opacity: 1;
+        }}
+
         .rotulo-plantao {{
             display: inline-block;
             font-size: 0.72rem;
@@ -383,13 +458,32 @@ def renderizar_cartoes(resultados):
         emoji = emoji_turno.get(item.get("tipo_plantao", ""), "")
         rotulo_texto = f"Plantão {idx} ·{emoji}" if emoji else f"Plantão {idx}"
         classe_extra = " cartao-passado" if item["data_obj"].date() < hoje else ""
-        cartao = (
-            f'<div class="cartao-plantao{classe_extra}">'
-            f'<span class="rotulo-plantao">{rotulo_texto}</span>'
-            f'<div class="linha-data">📅 {item["data_formatada"]} ({item["dia_nome"]}) - {item["local"]}</div>'
-            f'<div class="linha-horario">⏰ {item["horario_texto"]}</div>'
-            f'</div>'
+
+        e_telecardio = item["local"] == "TELECARDIOLOGIA"
+        bolinha_html = ' <span class="bolinha-indisponivel"></span>' if e_telecardio else ""
+
+        linha_data_html = (
+            f'<div class="linha-data">📅 {item["data_formatada"]} ({item["dia_nome"]}) - '
+            f'{item["local"]}{bolinha_html}</div>'
         )
+        conteudo_cartao = (
+            f'<span class="rotulo-plantao">{rotulo_texto}</span>'
+            f'{linha_data_html}'
+            f'<div class="linha-horario">⏰ {item["horario_texto"]}</div>'
+        )
+
+        if e_telecardio:
+            chk_id = f"pos_{idx}_{item['data_formatada'].replace('/', '')}"
+            local_pos = item.get("local_pos_graduacao") or "não definida"
+            cartao = (
+                f'<div class="cartao-wrapper">'
+                f'<input type="checkbox" id="{chk_id}" class="chk-telecardio">'
+                f'<label for="{chk_id}" class="cartao-plantao{classe_extra}">{conteudo_cartao}</label>'
+                f'<div class="painel-pos-graduacao"><span>{local_pos}</span></div>'
+                f'</div>'
+            )
+        else:
+            cartao = f'<div class="cartao-plantao{classe_extra}">{conteudo_cartao}</div>'
         cartoes.append(cartao)
     html = '<div class="grade-plantoes">' + "".join(cartoes) + '</div>'
     st.markdown(html, unsafe_allow_html=True)
